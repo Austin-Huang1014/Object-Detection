@@ -132,7 +132,7 @@ for epoch in range(Epoch): # loop over the dataset multiple times
             loss = criterion(eval_outputs, eval_labels)
             eval_loss += loss.item()
 
-    if (epoch + 1)%2 == 0:
+    if (epoch + 1)%10 == 0:
         torch.save(net.state_dict(),str(os.path.abspath('.'))+'/weight/CNN_epoch_%d_loss_%5f.pth' %(epoch + 1, train_loss / iTer))
         print('Model save')
     print('Epoch : %d || train_Loss : %.5f || eval_Loss : %.5f ' %(epoch + 1, train_loss / iTer, eval_loss / eval_iter))
