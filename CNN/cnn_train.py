@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import os
 import torch
 import torch.nn as nn
 from torchvision import datasets ,models,transforms
@@ -11,8 +12,8 @@ import torch.optim as optim
 from torch.autograd import Variable
 import torchvision
 
-# training parameters
-data_path = '/home/austin/DataSet/ncsist_dataset/missile_angle/missile_angle_datasets'
+# training parameters , add train_data and test_data folders in .../Datasets
+data_path = os.path.abspath('.') + '/Datasets'
 batch_size = 40
 n_class = 6
 Epoch = 50
@@ -131,8 +132,8 @@ for epoch in range(Epoch): # loop over the dataset multiple times
             loss = criterion(eval_outputs, eval_labels)
             eval_loss += loss.item()
 
-    if (epoch + 1)%10 == 0:
-        torch.save(net.state_dict(),'/home/austin/CNN_epoch_%d_loss_%5f.pth' %(epoch + 1, train_loss / iTer))
+    if (epoch + 1)%2 == 0:
+        torch.save(net.state_dict(),str(os.path.abspath('.'))+'/weight/CNN_epoch_%d_loss_%5f.pth' %(epoch + 1, train_loss / iTer))
         print('Model save')
     print('Epoch : %d || train_Loss : %.5f || eval_Loss : %.5f ' %(epoch + 1, train_loss / iTer, eval_loss / eval_iter))
 
