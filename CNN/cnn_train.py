@@ -10,21 +10,27 @@ import matplotlib.pyplot as plt
 import torch.optim as optim
 from torch.autograd import Variable
 import torchvision
-from torch.utils.tensorboard import SummaryWriter
+
+# training parameters
+data_path = '/home/austin/DataSet/ncsist_dataset/missile_angle/missile_angle_datasets'
+batch_size = 40
+n_class = 6
+Epoch = 50
 
 #load image from folder and set foldername as label
+
 train_data = datasets.ImageFolder(
-    '/home/austin/trailnet-testing-Pytorch/2020_summer/src/deep_learning/data/missile_angle_datasets/train_data',
+    data_path + '/train_data',
     transform = transforms.Compose([transforms.ToTensor()])                         
 )
 
 test_data = datasets.ImageFolder(
-    '/home/austin/trailnet-testing-Pytorch/2020_summer/src/deep_learning/data/missile_angle_datasets/test_data',
+    data_path + '/test_data',
     transform = transforms.Compose([transforms.ToTensor()])                         
 )
 
-train_loader = torch.utils.data.DataLoader(train_data, batch_size=40,shuffle= True)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=True)
+train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,shuffle= True)
+test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,shuffle=True)
 
 #CNN model
 class CNN_Model(nn.Module):
@@ -71,7 +77,7 @@ class CNN_Model(nn.Module):
             nn.MaxPool2d(kernel_size=2, stride=2),                
         )
         self.fc1 = nn.Linear(34048, 200)
-        self.fc2 = nn.Linear(200, 6)
+        self.fc2 = nn.Linear(200, n_class)
     
 
     def forward(self, x):
@@ -87,58 +93,48 @@ class CNN_Model(nn.Module):
 net = CNN_Model().cuda()
 criterion = nn.CrossEntropyLoss().cuda()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+iTer = len(train_loader)
+eval_iter = len(test_loader)
 
-writer = SummaryWriter('/home/austin/logs/cnn_loss')
-run_list = []
-loss_list = []
-n = 1
-for epoch in range(50): # loop over the dataset multiple times
-    running_loss = 0.0
+for epoch in range(Epoch): # loop over the dataset multiple times
+    # Train mode
+    train_loss = 0.0
     for i, data in enumerate(train_loader, 0):
         # get the input
-        inputs, labels = data
+        train_inputs, train_labels = data
 
         # wrap time in Variable
-        inputs, labels = Variable(inputs).cuda(), Variable(labels).cuda()
+        train_inputs, train_labels = Variable(train_inputs).cuda(), Variable(train_labels).cuda()
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward + backward + optimize
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
+        train_outputs = net(train_inputs)
+        loss = criterion(train_outputs, train_labels)
         loss.backward()
         optimizer.step()
+        train_loss += loss.item()
+    
+    # Eval mode
+    eval_loss = 0.0
+    with torch.no_grad():
+        for i, data in enumerate(test_loader, 0):
+            # get the input
+            eval_inputs, eval_labels = data
 
-        # print statistics
-        running_loss += loss.item()
-        if i % 20 == 0:   # print every 2000 mini-batches
-            print('[%d, %d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 20))
-            running_loss = 0.0
-    run_list.append(n)
-    n += 1
-    loss_list.append(running_loss)
-    writer.add_scalar("Loss_curve", running_loss, n)
-writer.close()
+            # wrap time in Variable
+            eval_inputs, eval_labels = Variable(eval_inputs).cuda(), Variable(eval_labels).cuda()
+            
+            # prediction
+            eval_outputs = net(eval_inputs)
+            loss = criterion(eval_outputs, eval_labels)
+            eval_loss += loss.item()
+
+    if (epoch + 1)%10 == 0:
+        torch.save(net.state_dict(),'/home/austin/CNN_epoch_%d_loss_%5f.pth' %(epoch + 1, train_loss / iTer))
+        print('Model save')
+    print('Epoch : %d || train_Loss : %.5f || eval_Loss : %.5f ' %(epoch + 1, train_loss / iTer, eval_loss / eval_iter))
+
 
 print('Finished Training')
-torch.save(net.state_dict(),'/home/austin/line_angle.pth')
-
-#Accuracy present
-# print('Accuracy testing...')
-# correct = 0
-# total = 0
-# for data in test_loader:
-#     images, labels = data
-#     images = images.cuda()
-#     labels = labels.cuda()
-#     with torch.no_grad():
-#          outputs = net(Variable(images))
-#          _,predicted = torch.max(outputs.data,1)
-#     #print('predict:',predicted)
-#     #print('labels.:',labels)
-#     total += labels.size(0)
-#     correct += (predicted == labels).sum()
-
-# print('Accuracy of the network on the test images: %d %%' % (100 * correct / total))
